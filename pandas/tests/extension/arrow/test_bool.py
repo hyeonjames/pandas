@@ -1,12 +1,13 @@
 import numpy as np
 import pytest
+
 import pandas as pd
-import pandas.util.testing as tm
 from pandas.tests.extension import base
+import pandas.util.testing as tm
 
-pytest.importorskip('pyarrow', minversion="0.10.0")
+pytest.importorskip("pyarrow", minversion="0.10.0")
 
-from .bool import ArrowBoolDtype, ArrowBoolArray
+from .arrays import ArrowBoolArray, ArrowBoolDtype  # isort:skip
 
 
 @pytest.fixture
@@ -16,11 +17,17 @@ def dtype():
 
 @pytest.fixture
 def data():
-    return ArrowBoolArray.from_scalars(np.random.randint(0, 2, size=100,
-                                       dtype=bool))
+    values = np.random.randint(0, 2, size=100, dtype=bool)
+    values[1] = ~values[0]
+    return ArrowBoolArray.from_scalars(values)
 
 
-class BaseArrowTests(object):
+@pytest.fixture
+def data_missing():
+    return ArrowBoolArray.from_scalars([None, True])
+
+
+class BaseArrowTests:
     pass
 
 
@@ -30,13 +37,32 @@ class TestDtype(BaseArrowTests, base.BaseDtypeTests):
 
 
 class TestInterface(BaseArrowTests, base.BaseInterfaceTests):
-    def test_repr(self, data):
-        raise pytest.skip("TODO")
+    def test_copy(self, data):
+        # __setitem__ does not work, so we only have a smoke-test
+        data.copy()
+
+    def test_view(self, data):
+        # __setitem__ does not work, so we only have a smoke-test
+        data.view()
 
 
 class TestConstructors(BaseArrowTests, base.BaseConstructorsTests):
     def test_from_dtype(self, data):
         pytest.skip("GH-22666")
+
+    # seems like some bug in isna on empty BoolArray returning floats.
+    @pytest.mark.xfail(reason="bad is-na for empty data")
+    def test_from_sequence_from_cls(self, data):
+        super().test_from_sequence_from_cls(data)
+
+
+class TestReduce(base.BaseNoReduceTests):
+    def test_reduce_series_boolean(self):
+        pass
+
+
+class TestReduceBoolean(base.BaseBooleanReduceTests):
+    pass
 
 
 def test_is_bool_dtype(data):
